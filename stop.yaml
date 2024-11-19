@@ -1,0 +1,40 @@
+kind: CronJob
+apiVersion: batch/v1
+metadata:
+  name: vm-stop-win
+  namespace: vmsample
+spec:
+  schedule: "43 13 * * *"
+  timeZone: Asia/Jakarta
+  concurrencyPolicy: Allow
+  suspend: false
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - resources: {}
+              name: vm-snapshot
+              command:
+                - /bin/bash
+                - '-c'
+              env:
+                - name: TZ
+                  value: Asia/Jakarta
+              imagePullPolicy: IfNotPresent
+              terminationMessagePolicy: File
+              image: 'alfiilham26/oc:4.16'
+              args:
+                - |
+                  #!/bin/bash
+
+                  VM_NAME="win10-crimson-ant-48"
+                  NAMESPACE="vmsample"
+
+                  # Log in to OpenShift (use service account token or in-cluster config)
+                  oc login -u admin -p P@ssw0rd --server=https://api.ocp4.virtus-lab.net:6443 --insecure-skip-tls-verify
+
+                  # virtctl command
+                  virtctl start $VM_NAME -n $NAMESPACE
+          serviceAccountName: cronjob-virtual
+          serviceAccount: cronjob-virtual
