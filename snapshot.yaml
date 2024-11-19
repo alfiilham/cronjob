@@ -1,74 +1,59 @@
-apiVersion: batch/v1
 kind: CronJob
+apiVersion: batch/v1
 metadata:
-  name: vm-snapshot-cronjob
+  name: vm-snapshot-win
   namespace: vmsample
 spec:
-  schedule: '*/2 * * * *'  # Every 2 minutes
+  schedule: 42 12 * * *
+  timeZone: Asia/Jakarta
   concurrencyPolicy: Allow
   suspend: false
   jobTemplate:
     spec:
       template:
         spec:
+          serviceAccountName: my-service-account
           containers:
-          - name: vm-snapshot
-            image: 'alfiilham26/my-openshift-cli:4.16'
-            command:
-              - /bin/bash
-              - '-c'
-            args:
-              - |
-                #!/bin/bash
+            - resources: {}
+              terminationMessagePath: /dev/termination-log
+              name: vm-snapshot
+              command:
+                - /bin/bash
+                - '-c'
+              env:
+                - name: TZ
+                  value: Asia/Jakarta
+              imagePullPolicy: IfNotPresent
+              terminationMessagePolicy: File
+              image: 'alfiilham26/oc:4.16'
+              args:
+                - |
+                  #!/bin/bash
 
-                VM_NAME="rhel8-emerald-puffin-70"
-                NAMESPACE="vmsample"
-                SNAPSHOT_NAME="snapshot-$(date +%Y%m%d%H%M%S)"
+                  VM_NAME="win10-crimson-ant-48"
+                  NAMESPACE="vmsample"
+                  SNAPSHOT_NAME="snapshot-$(date +%Y-%m-%d-%H%M)"
 
-                # Log in to OpenShift (use service account token or in-cluster config)
-                oc login -u admin -p P@ssw0rd --server=https://api.ocp4.virtus-lab.net:6443 --insecure-skip-tls-verify
+                  # Log in to OpenShift (use service account token or in-cluster config)
+                  oc login -u admin -p P@ssw0rd --server=https://api.ocp4.virtus-lab.net:6443 --insecure-skip-tls-verify
 
-                # Create a temporary YAML file for the VirtualMachineSnapshot
-                cat <<EOF > /tmp/vmsnapshot.yaml
-                apiVersion: snapshot.kubevirt.io/v1alpha1
-                kind: VirtualMachineSnapshot
-                metadata:
-                  name: $SNAPSHOT_NAME
-                  namespace: $NAMESPACE
-                spec:
-                  source:
-                    apiGroup: kubevirt.io
-                    kind: VirtualMachine
-                    name: $VM_NAME
-                EOF
+                  # Create a temporary YAML file for the VirtualMachineSnapshot
+                  cat <<EOF > /tmp/vmsnapshot.yaml
+                  apiVersion: snapshot.kubevirt.io/v1alpha1
+                  kind: VirtualMachineSnapshot
+                  metadata:
+                    name: $SNAPSHOT_NAME
+                    namespace: $NAMESPACE
+                  spec:
+                    source:
+                      apiGroup: kubevirt.io
+                      kind: VirtualMachine
+                      name: $VM_NAME
+                  EOF
 
-                # Apply the snapshot configuration
-                oc apply -f /tmp/vmsnapshot.yaml
+                  # Apply the snapshot configuration
+                  oc apply -f /tmp/vmsnapshot.yaml
 
-                # Optionally, remove the temporary YAML file
-                rm /tmp/vmsnapshot.yaml
+                  # Optionally, remove the temporary YAML file
+                  rm /tmp/vmsnapshot.yaml
           restartPolicy: OnFailure
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  namespace: poc-ocpv
-  name: vm-snapshot-role
-rules:
-- apiGroups: ["snapshot.kubevirt.io"]
-  resources: ["virtualmachinesnapshots"]
-  verbs: ["create", "get", "list", "watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: vm-snapshot-rolebinding
-  namespace: poc-ocpv
-subjects:
-- kind: ServiceAccount
-  name: default
-  namespace: poc-ocpv
-roleRef:
-  kind: Role
-  name: vm-snapshot-role
-  apiGroup: rbac.authorization.k8s.io
