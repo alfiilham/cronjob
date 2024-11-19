@@ -38,3 +38,4 @@ spec:
                   virtctl start $VM_NAME -n $NAMESPACE
           serviceAccountName: cronjob-virtual
           serviceAccount: cronjob-virtual
+          restartPolicy: OnFailure
